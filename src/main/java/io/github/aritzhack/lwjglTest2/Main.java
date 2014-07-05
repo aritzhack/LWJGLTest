@@ -7,6 +7,7 @@ import io.github.aritzhack.lwjglTest2.graphics.IconLoader;
 import io.github.aritzhack.lwjglTest2.graphics.Materials;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.LWJGLException;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.opengl.GL11;
@@ -24,43 +25,77 @@ import static org.lwjgl.opengl.GL11.*;
 public class Main {
 
     public static boolean DEBUG = false;
-    public static ILogger LOG = new SLF4JLogger("LWJGLTest");
+    public static ILogger LOG = new SLF4JLogger(Main.class);
 
     public static GameTimer timer = new GameTimer();
 
     private static int colorHandle;
     private static int vertexHandle;
+    private static boolean secondCube;
+
 
     public static void main(String[] args) throws LWJGLException {
         setupDebug(args);
 
         createDisplay();
-
         initOGL();
-
         timer.init();
-
         CreateVBO();
-
         GL11.glTranslatef(0, 0, -5);
 
         while (!Display.isCloseRequested()) {
-            Display.setTitle("Test! - " + timer.getAverageUPS());
-
-
-            GL11.glClear(GL11.GL_COLOR_BUFFER_BIT
-                | GL11.GL_DEPTH_BUFFER_BIT);
-
-            GL11.glTranslatef(0.0001f, 0f, -0.0001f); // Move Right 1.5 Units And Into
-            // The
-            GL11.glRotatef(0.025f, 1.0f, .5f, .25f);
-            DrawVBO();
-            // Render();
-            Display.update();
-            timer.update();
-            //Display.sync(60);
+            mainLoop();
         }
         Display.destroy();
+    }
+
+    private static void mainLoop() {
+        Display.setTitle("Test! - " + timer.getAverageUPS());
+
+        keyboard();
+
+        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT
+            | GL11.GL_DEPTH_BUFFER_BIT);
+
+        // GL11.glTranslatef(0.0001f, 0f, -0.0001f);
+        GL11.glRotatef(0.025f, 1.0f, .5f, .25f);
+        // GL11.glRotatef(0.025f, 1f, 0f, 0f);
+        // GL11.glRotatef(0.025f, 0f, 1f, 0f);
+        // GL11.glRotatef(0.025f, 0f, 0f, 1f);
+        DrawVBO();
+        Display.update();
+        timer.update();
+        //Display.sync(60);
+    }
+
+    private static void keyboard() {
+        while (Keyboard.next()) {
+            int key = Keyboard.getEventKey();
+            if (!Keyboard.getEventKeyState()) return;
+            switch (key) {
+                case Keyboard.KEY_L:
+                    Materials.toggleAll();
+                    break;
+                case Keyboard.KEY_D:
+                    Materials.toggleDiffuse();
+                    break;
+                case Keyboard.KEY_S:
+                    Materials.toggleSpecular();
+                    break;
+                case Keyboard.KEY_A:
+                    Materials.toggleAmbient();
+                    break;
+                case Keyboard.KEY_H:
+                    Materials.toggleShininess();
+                    break;
+                case Keyboard.KEY_E:
+                    Materials.toggleEmissiom();
+                    break;
+                case Keyboard.KEY_C:
+                    secondCube = !secondCube;
+                    break;
+            }
+        }
     }
 
     private static void initOGL() throws LWJGLException {
@@ -72,27 +107,11 @@ public class Main {
         GL11.glDepthFunc(GL11.GL_LEQUAL);
         GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
 
-        glEnable(GL_DEPTH_TEST);
+        initLights();
 
-        FloatBuffer lightPos = Util.bufferOf(0.5f, 0.5f, 3.0f, 0.0f);
+        //Materials.setMaterial();
 
-        glLight(GL_LIGHT0, GL_POSITION, lightPos);
-
-        glEnable(GL_LIGHTING);
-        glEnable(GL_LIGHT0);
-        Materials.setMaterial();
-
-        glEnable(GL_FOG);
-        {
-            FloatBuffer fogColor = Util.bufferOf(0.5f, 0.5f, 0.5f, 1.0f);
-            glFogi(GL_FOG_MODE, GL_EXP);
-            glFog(GL_FOG_COLOR, fogColor);
-            glFogf(GL_FOG_DENSITY, 0.35f);
-            glHint(GL_FOG_HINT, GL_DONT_CARE);
-            glFogf(GL_FOG_START, 1.0f);
-            glFogf(GL_FOG_END, 5.0f);
-        }
-        glClearColor(0.5f, 0.5f, 0.5f, 1.0f);  /* fog color */
+        //initFog();
 
         glEnableClientState(GL11.GL_COLOR_ARRAY);
 
@@ -102,6 +121,39 @@ public class Main {
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
 
         GL11.glHint(GL11.GL_PERSPECTIVE_CORRECTION_HINT, GL11.GL_NICEST);
+    }
+
+    private static void initFog() {
+        glEnable(GL_FOG);
+        {
+            FloatBuffer fogColor = Util.bufferOf(0.5f, 0.5f, 0.5f, 1.0f);
+            glFogi(GL_FOG_MODE, GL_EXP);
+            glFog(GL_FOG_COLOR, fogColor);
+            glFogf(GL_FOG_DENSITY, 0.35f);
+            glHint(GL_FOG_HINT, GL_DONT_CARE);
+            glFogf(GL_FOG_START, 10.0f);
+            glFogf(GL_FOG_END, 10.0f);
+        }
+        glClearColor(0.5f, 0.5f, 0.5f, 1.0f);  /* fog color */
+    }
+
+    private static void initLights() {
+        glEnable(GL_DEPTH_TEST);
+
+        //FloatBuffer lightPos = Util.bufferOf(0.5f, 0.5f, 3.0f, 0.0f);
+
+        FloatBuffer whiteSpecularLight = Util.bufferOf(1.0f, 1.0f, 1.0f, 1.0f);
+        FloatBuffer blackAmbientLight = Util.bufferOf(0.0f, 0.0f, 0.0f, 1.0f);
+        FloatBuffer whiteDiffuseLight = Util.bufferOf(1.0f, 1.0f, 1.0f, 1.0f);
+
+        //glLight(GL_LIGHT0, GL_POSITION, lightPos);
+
+        glLight(GL_LIGHT0, GL_SPECULAR, whiteSpecularLight);
+        glLight(GL_LIGHT0, GL_AMBIENT, blackAmbientLight);
+        glLight(GL_LIGHT0, GL_DIFFUSE, whiteDiffuseLight);
+
+        glEnable(GL_LIGHTING);
+        glEnable(GL_LIGHT0);
     }
 
     private static void CreateVBO() {
@@ -192,6 +244,20 @@ public class Main {
         GL11.glColorPointer(3, GL11.GL_FLOAT, 0, 0L);
         GL11.glDrawArrays(GL11.GL_QUADS, 0, 6 * 4); // FacesPerCube * VerticesPerFace
         GL11.glPopMatrix();
+
+        if (secondCube) { // Draw second cube
+            glTranslatef(0f, 0f, 4f);
+
+            GL11.glPushMatrix();
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexHandle);
+            GL11.glVertexPointer(3, GL11.GL_FLOAT, 0, 0L);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, colorHandle);
+            GL11.glColorPointer(3, GL11.GL_FLOAT, 0, 0L);
+            GL11.glDrawArrays(GL11.GL_QUADS, 0, 6 * 4); // FacesPerCube * VerticesPerFace
+            GL11.glPopMatrix();
+
+            glTranslatef(0f, 0f, -4f);
+        }
     }
 
     private static void createDisplay() throws LWJGLException {
